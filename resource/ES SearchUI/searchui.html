@@ -1,0 +1,92 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8"> 
+<title>ES SearchUI</title> 
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" media="screen" />
+<script src="jquery-3.3.1.js"></script>
+<script src="layer.js"></script>
+<style type="text/css">
+	html{height: 100%;overflow: hidden;}
+	body{height: 100%;}
+	.toolbar {
+	    position: absolute;
+	    top: 18px;
+	    left: 100px;
+	}
+	.toolbar>li>ul{
+		display:none;
+		background-color: #fff;
+		padding: 10px 5px 10px 5px;
+		margin: 0px;
+		border-style: solid;
+		border-color: #d0d0d0 #d0d0d0 #b0b0b0;
+		border-radius: 4px;
+		border-width: 0;
+		box-shadow: 0 4px 18px 0 rgb(0 0 0 / 15%), 0 4px 5px 0 rgb(0 0 0 / 14%);
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+		font-size: 14px;
+		box-sizing: border-box;
+	}
+	ul>li {
+	    padding: 5px 0px;
+	}
+	.toolbar>li{
+		color: #006BB4;
+		height: 24px;
+		font-size: 14px;
+	}
+	ul,li{list-style:none;cursor: pointer}
+	a:hover{
+		text-decoration:underline
+	}
+</style>
+<script>
+var result1 ='';
+var size = 500;
+$(document).ready(function(){
+	window.addEventListener('message',function(e){
+		if(e.data.type === 'queryResult'){
+			const resultArray = [];
+			resultArray.push(e.data.queryParam==""?' ':e.data.queryParam);
+			console.log(e.data.queryParam)
+			var result = JSON.parse(e.data.content);
+			//export数据解析
+			$.each(result.hits.hits, (index, value) => {
+					  const _id = value._id ? value._id : '';
+					  resultArray.push(_id);
+					});
+			result1 = resultArray.join(',');
+		}else if(e.data.type === 'queryParam'){
+			var queryParam = JSON.parse(e.data.content);
+			console.log(queryParam)
+			size = queryParam.params.body.size;
+		}
+	})
+  $("#customFuntion").click(function(){
+   $(".toolbar>li>ul").toggle();
+  });
+  $("#export").click(function(){
+	layer.msg('正在导出查询结果前'+size+'条数据，请稍后');
+	parent.postMessage(result1, '*');
+  })
+  $("#download").click(function(){
+	 layer.msg('功能开发中...');
+  })
+});
+</script>
+</head>
+<body>
+	<div class="toolbar">
+		<li><a id="customFuntion">定制化功能</a>
+            <ul>
+                <li><a id = "export">Export</a></li>
+                <li><a id = "download">DownLoad</a></li>
+            </ul>
+        </li>
+	</div>
+	<iframe id="discover"  width="100%" height="100%" scrolling="yes" frameborder="0" id="frame" src="http://47.103.64.41:5601/app/discover"></iframe>
+</body>
+</html>
