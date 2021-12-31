@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8"> 
+<title>ES SearchUI</title> 
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" media="screen" />
+<script src="jquery-3.3.1.js"></script>
+<script src="layer.js"></script>
+<link rel="stylesheet" href="layui/css/layui.css" media="all">
+<link rel="stylesheet" href="theme/default/drawer.css" media="all">
+<script src="layui/layui.js" type="text/javascript"></script>
+</head>
+<body>
+	<div id="drawer" style="height: 100%;">
+    <div id="customFuntion" style="display:none;">
+      <div class="drawer-header">
+        <div class="drawer-header-title">定制化功能</div>
+      </div>
+      <div class="drawer-header-content">
+        <p id="export" class="pBox">
+          <a>
+            Export
+          </a>
+        </p>
+        <p id="download" class="pBox">
+          <a>
+            DownLoad
+          </a>
+        </p>
+      </div>
+    </div>
+    <div style="height: 100%;">
+      <i class="layui-icon layui-icon-shrink-right" id='tig'></i>
+      <iframe id="discover" width="100%" height="100%" scrolling="yes" frameborder="0"
+        src="http://47.103.64.41:5601/app/discover"></iframe>
+    </div>
+  </div>
+</body>
+</html>
+<script>
+  layui.config({
+    base: './'
+  }).extend({
+    drawer: 'layDrawer'
+  });
+  layui.use(['drawer'], function () {
+    var drawer = layui.drawer;
+    drawer.render({
+      //trigger和elem只能为id
+      trigger: '#tig',
+      elem: '#customFuntion'
+        //top   bottom   left   right 默认为left
+        ,
+      position: 'left'
+        //默认为230  可以填百分比
+        ,
+      specs: '14%',
+      open: function () {
+        // layer.msg("打开")
+      },
+      close: function () {
+        // layer.msg("关闭")
+      }
+    });
+  });
+  var queryParam = {};
+  var queryParam1 = '';
+  var size = 10000;
+  $(document).ready(function () {
+    window.addEventListener('message', function (e) {
+  		if (e.data.type === 'queryParam') {
+  			queryParam = JSON.parse(e.data.content);
+  			queryParam1 = e.data.queryParam == "" ? ' ' : e.data.queryParam;
+  			queryParam.params.body.size = size;
+  		};
+    })
+    $('#customFuntion').on('click', "#export", function () {
+      console.log('点击export')
+      layer.msg('正在导出查询结果前' + size + '条数据，请稍后');
+  	  $.ajax({
+  	  		url: "/api/internal/search/es",
+  	  		type: "POST",
+  	  		dataType: "json",
+  	  			data: JSON.stringify(queryParam),
+  	  			headers:{
+  	  			"kbn-version":'7.9.3',
+  	  			'Content-Type':'application/json;charset=utf8',
+  	  		},
+  	  			xhrFields:{
+  	  			withCredentials:true
+  	  		},//支持跨域发送cookies
+  	  		success: function (result) {
+  	  			const resultArray = [];
+  	  			resultArray.push(queryParam1);
+  	  			//export数据解析
+  	  			$.each(result.rawResponse.hits.hits, (index, value) => {
+  	  			  const _id = value._id ? value._id : '';
+  	  			  resultArray.push(_id);
+  	  			});
+  	  			result1 = resultArray.join(',');
+  	  			console.log(result1);
+				parent.postMessage(result1, '*');
+  			},
+  			error: function (xhr, status, p3, p4) {
+  				console.log(xhr,status,'status')
+					if(xhr.status == 401) {
+  					layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+  				}
+			}
+		})
+  	});
+    $('#customFuntion').on('click', "#download", function () {
+      console.log('点击download')
+      layer.msg('功能开发中...');
+      console.log($("#discover").contents(),'$("#discover").contents()')
+    })
+  });
+</script>
