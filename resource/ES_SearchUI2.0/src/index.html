@@ -8,84 +8,98 @@
 <script src="jquery-3.3.1.js"></script>
 <script src="layer.js"></script>
 <link rel="stylesheet" href="layui/css/layui.css" media="all">
+<link rel="stylesheet" href="index.css" media="all">
 <link rel="stylesheet" href="theme/default/drawer.css" media="all">
 <script src="layui/layui.js" type="text/javascript"></script>
+<script src="index.js" type="text/javascript"></script>
 </head>
 <body>
-	<div id="drawer" style="height: 100%;">
-    <div id="customFuntion" style="display:none;">
-      <div class="drawer-header">
-        <div class="drawer-header-title">定制化功能</div>
-      </div>
-      <div class="drawer-header-content">
-        <p id="export" class="pBox">
-          <a>
-            Export
-          </a>
-        </p>
-        <p id="download" class="pBox">
-          <a>
-            DownLoad
-          </a>
-        </p>
-      </div>
-    </div>
+	<div class="cfunction" id="customFuntion">
+	      <div class="cfunction_anchor">
+	          <button class="cbtn">
+	              <span class="cfunction_content">
+	                  <span class="cfunction_text">
+	                      <svg t="1642128853875" class="icon" viewBox="0 0 1024 1024" version="1.1"
+	                          xmlns="http://www.w3.org/2000/svg" p-id="735" width="20" height="20">
+	                          <path
+	                              d="M912 800a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H112a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h800zM266.752 331.312a8 8 0 0 1 8 8v345.376a8 8 0 0 1-13.664 5.648l-155.712-155.712a32 32 0 0 1 0-45.248l155.712-155.712a8 8 0 0 1 5.664-2.352zM912 576a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H464a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h448z m0-224a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H464a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h448z m0-224a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H112a16 16 0 0 1-16-16V144a16 16 0 0 1 16-16h800z"
+	                              fill="#2c2c2c" p-id="736"></path>
+	                      </svg>
+	                  </span>
+	              </span>
+	          </button>
+	
+	
+	          <div class="cfunction_menu" style="display: none;">
+	            <p id="export" class="cBox ">
+	              <a>
+	                病例检索确认
+	              </a>
+	            </p>
+	            <p id="download" class="cBox ">
+	              <a>
+	                下载csv
+	              </a>
+	            </p>
+	             
+	          </div>
+	      </div>
+	    </div>
+	<!-- <div id="drawer" style="height: 100%;"> -->
     <div style="height: 100%;">
-      <i class="layui-icon layui-icon-shrink-right" id='tig'></i>
       <iframe id="discover" width="100%" height="100%" scrolling="yes" frameborder="0"
         src="http://47.103.64.41:5601/app/discover"></iframe>
     </div>
-  </div>
+  <!-- </div> -->
 </body>
 </html>
 <script>
-  layui.config({
-    base: './'
-  }).extend({
-    drawer: 'layDrawer'
-  });
-  layui.use(['drawer'], function () {
-    var drawer = layui.drawer;
-    drawer.render({
-      //trigger和elem只能为id
-      trigger: '#tig',
-      elem: '#customFuntion'
-        //top   bottom   left   right 默认为left
-        ,
-      position: 'left'
-        //默认为230  可以填百分比
-        ,
-      specs: '14%',
-      open: function () {
-        // layer.msg("打开")
-      },
-      close: function () {
-        // layer.msg("关闭")
-      }
-    });
-  });
   var queryParam = {};
+  var queryParamForCsv = {};
   var queryParam1 = '';
-  var size = 10000;
+  var filter = {};
+  var size = 100;
   $(document).ready(function () {
     window.addEventListener('message', function (e) {
   		if (e.data.type === 'queryParam') {
-  			queryParam = JSON.parse(e.data.content);
-  			queryParam1 = e.data.queryParam == "" ? ' ' : e.data.queryParam;
-  			queryParam.params.body.size = size;
-  		};
+			var objectq = JSON.parse(e.data.content);
+			if(objectq.id === undefined){
+				queryParam = objectq;
+				queryParam1 = e.data.queryParam == "" ? ' ' : e.data.queryParam;
+				queryParam.params.body.size = size;	
+				filter = queryParam.params.body.query.bool.filter;
+				//downLoadCsv需要原始查询内容不需distinct
+				queryParamForCsv = JSON.parse(JSON.stringify(queryParam));
+				//配置查询结果 distinct
+				//queryParam.params.body.collapse = {field: "就诊流水号.keyword"}
+			}
+  		} else if(e.data.type === 'spotfireParams'){
+			//处理spotfire传来的参数
+			if(queryParam.params===undefined){
+				layer.msg("未接收到spotfire数据，请先完成初次搜索");
+			}else{
+				//增加查询参数，spotfire想要过滤的内容
+				var spotfireParams = e.data.content;
+				queryParam.params.body.query.bool.filter = filter;
+				queryParam.params.body.query.bool.filter.push(spotfireParams)
+				layer.msg("已收到spotfire参数,并配置作用于导出确认");
+			}
+		}
     })
     $('#customFuntion').on('click', "#export", function () {
       console.log('点击export')
       layer.msg('正在导出查询结果前' + size + '条数据，请稍后');
   	  $.ajax({
-  	  		url: "/api/internal/search/es",
+  	  		//url: "/api/internal/search/es",
+			url: "/api/api/console/proxy?path="+queryParam.params.index+"/_search&method=GET",
   	  		type: "POST",
   	  		dataType: "json",
-  	  			data: JSON.stringify(queryParam),
+  	  			//data: JSON.stringify(queryParam),
+				data: JSON.stringify(queryParam.params.body),
   	  			headers:{
-  	  			"kbn-version":'7.9.3',
-  	  			'Content-Type':'application/json;charset=utf8',
+  	  			//"kbn-version":'7.9.3',
+				'kbn-xsrf': 'kibana',
+  	  			'Content-Type':'application/json;charset=utf8'
   	  		},
   	  			xhrFields:{
   	  			withCredentials:true
@@ -94,7 +108,8 @@
   	  			const resultArray = [];
   	  			resultArray.push(queryParam1);
   	  			//export数据解析
-  	  			$.each(result.rawResponse.hits.hits, (index, value) => {
+  	  			//$.each(result.rawResponse.hits.hits, (index, value) => {
+				$.each(result.hits.hits, (index, value) => {
   	  			  const _id = value._id ? value._id : '';
   	  			  resultArray.push(_id);
   	  			});
@@ -110,10 +125,76 @@
 			}
 		})
   	});
-    $('#customFuntion').on('click', "#download", function () {
-      console.log('点击download')
-      layer.msg('功能开发中...');
-      console.log($("#discover").contents(),'$("#discover").contents()')
-    })
+	$('#customFuntion').on('click', "#download", function () {
+	  console.log('点击export')
+	  layer.msg('正在下载查询结果前' + size + '条数据，请稍后');
+	  let fileName = "csvFile.csv";
+	  $.ajax({
+			url: "/api/api/console/proxy?path="+queryParam.params.index+"/_search&method=GET",
+	  		type: "POST",
+	  		dataType: "json",
+				data: JSON.stringify(queryParam.params.body),
+	  			headers:{
+	  			//"kbn-version":'7.9.3',
+				'kbn-xsrf': 'kibana',
+	  			'Content-Type':'application/json;charset=utf8'
+	  		},
+	  			xhrFields:{
+	  			withCredentials:true
+	  		},//支持跨域发送cookies
+	  		success: function (result) {
+	  			let csvText="";
+				var columnNames = new Set();
+	  			let one=result.hits.hits[0]._source;
+	  			for(let key in one){
+	  				csvText+=key+","
+					columnNames.add(key);
+	  			}
+	  			csvText=trim(csvText,',')+"\r\n";
+	  			$.each(result.hits.hits, (index, value) => {
+	  				let row="";
+					columnNames.forEach(columnName=>{row+=`${value._source[columnName]}`.replace(/\r|\n/g,'')+'\t,'})
+	  				csvText+=trim(row,',')+'\r\n';
+	  			});
+				var csvTextForSpotfire = "downLoadCsv"+" "+fileName+":"+csvText;
+				downloadFile(csvText,fileName); //浏览器下载
+				//parent.postMessage(csvTextForSpotfire,"*");//发送到spotfire中，配置es_searchUI插件由spotfire来管理下载内容
+			},
+			error: function (xhr, status, p3, p4) {
+				console.log(xhr,status,'status')
+					if(xhr.status == 401) {
+					layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+				}
+			}
+		})
+	});
+    function downloadFile(data, fileName) {
+            var csvData = data;
+            var blob = new Blob([ "\ufeff"+csvData ], {
+                type : "application/csv;charset=utf-8;"
+            });
+    
+            if (window.navigator.msSaveBlob) {
+                // FOR IE BROWSER
+                navigator.msSaveBlob(blob, fileName);
+            } else {
+                // FOR OTHER BROWSERS
+                var link = document.createElement("a");
+                var csvUrl = URL.createObjectURL(blob);
+                link.href = csvUrl;
+                link.style = "visibility:hidden";
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+    }
+	//js实现trim效果
+	function trim(str,char){
+		if(char){
+			str=str.replace(new RegExp('^\\'+char+'+|\\'+char+'+$', 'g'), '');
+		}
+		return str.replace(/^\s+|\s+$/g,'');
+	}
   });
 </script>

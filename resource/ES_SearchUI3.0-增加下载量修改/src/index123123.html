@@ -1,0 +1,354 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8"> 
+<title>ES SearchUI</title> 
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" media="screen" />
+<script src="jquery-3.3.1.js"></script>
+<script src="layer.js"></script>
+<link rel="stylesheet" href="layui/css/layui.css" media="all">
+<link rel="stylesheet" href="index.css" media="all">
+<link rel="stylesheet" href="theme/default/drawer.css" media="all">
+<script src="layui/layui.js" type="text/javascript"></script>
+<script src="index.js" type="text/javascript"></script>
+</head>
+<body>
+	<div class="cfunction" id="customFuntion">
+	      <div class="cfunction_anchor">
+	          <button class="cbtn">
+	              <span class="cfunction_content">
+	                  <span class="cfunction_text">
+	                      <svg t="1642128853875" class="icon" viewBox="0 0 1024 1024" version="1.1"
+	                          xmlns="http://www.w3.org/2000/svg" p-id="735" width="20" height="20">
+	                          <path
+	                              d="M912 800a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H112a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h800zM266.752 331.312a8 8 0 0 1 8 8v345.376a8 8 0 0 1-13.664 5.648l-155.712-155.712a32 32 0 0 1 0-45.248l155.712-155.712a8 8 0 0 1 5.664-2.352zM912 576a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H464a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h448z m0-224a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H464a16 16 0 0 1-16-16v-64a16 16 0 0 1 16-16h448z m0-224a16 16 0 0 1 16 16v64a16 16 0 0 1-16 16H112a16 16 0 0 1-16-16V144a16 16 0 0 1 16-16h800z"
+	                              fill="#2c2c2c" p-id="736"></path>
+	                      </svg>
+	                  </span>
+	              </span>
+	          </button>
+			  <div class="cfunction_menu" style="display: none;">
+	            <p id="export" class="cBox ">
+	              <a>
+	                病历检索确认
+	              </a>
+	            </p>
+	            <p id="download" class="cBox ">
+	              <a>
+	                下载csv
+	              </a>
+	            </p>
+	             
+	          </div>
+	      </div>
+	    </div>
+	<!-- <div id="drawer" style="height: 100%;"> -->
+    <div style="height: 100%;">
+      <iframe id="discover" width="100%" height="100%" scrolling="yes" frameborder="0"
+        src="http://192.168.62.174:5601/kibana/app/discover"></iframe>
+    </div>
+  <!-- </div> -->
+</body>
+</html>
+<script>
+  let queryParam = {};
+  let queryParamForCsv = {};
+  var queryParam1 = '';
+  var size = 1000; //export导出行数限制
+  var sizeForDownLoad = 50000;//单次最大下载行数，如果很多，可以分页下载
+  var filter = '';
+  var getSpotfireParams = false;
+  $(document).ready(function () {
+    window.addEventListener('message', function (e) {
+  		if (e.data.type === 'queryParam') {
+  			var objectq = JSON.parse(e.data.content);
+			if(objectq.id===undefined){
+				queryParam = objectq;
+				queryParam1 = e.data.queryParam == "" ? ' ' : e.data.queryParam;
+				queryParam.params.body.size = size;
+				//downCsv功能不做distinct操作
+				queryParamForCsv = JSON.parse(JSON.stringify(queryParam));
+				//queryParamForCsv.params.body.size = sizeForDownLoad;
+				//为查询参数配置目标导出字段，distinct
+				queryParam.params.body.collapse={field: "就诊流水号.keyword"}
+				filter =JSON.stringify(queryParam.params.body.query.bool.filter);
+			}
+  		}else if(e.data.type === 'spotfireParams'){
+			if(queryParam.params===undefined){
+				layer.msg('未接收到spofire数据，请先完成初次搜索');
+			}else{
+				getSpotfireParams = true
+				//增加查询参数：spotfire传递过来的数据（就诊流水号 数据集 以 空格分开）
+				var spotfireParams = e.data.content;
+				queryParam.params.body.query.bool.filter = JSON.parse(filter);
+				queryParam.params.body.query.bool.filter.push(spotfireParams);
+				//queryParam.params.body.collapse={field: "就诊流水号.keyword"} //测试正式环境删除
+				queryParamForCsv.params.body.query.bool.filter = JSON.parse(filter);
+				queryParamForCsv.params.body.query.bool.filter.push(spotfireParams);
+				//queryParamForCsv.params.body.size = sizeForDownLoad; //size改用分页方式，在具体调用页面使用
+				layer.msg('已接收到spofire数据，配置生效截止下次搜索');
+			}
+		};
+    })
+    $('#customFuntion').on('click', "#export", function () {
+      console.log('点击export')
+      layer.msg('正在导出查询结果前' + size + '条数据，请稍后');
+  	  $.ajax({
+  	  		//url: "/api/internal/search/es",
+			url: "/kibana/api/console/proxy?path="+queryParam.params.index+"/_search&method=GET",
+  	  		type: "POST",
+  	  		dataType: "json",
+  	  			//data: JSON.stringify(queryParam),
+				data: JSON.stringify(queryParam.params.body),
+  	  			headers:{
+  	  			//"kbn-version":'7.9.3',
+				'kbn-xsrf': 'kibana',
+  	  			'Content-Type':'application/json;charset=utf8'
+  	  		},
+  	  			xhrFields:{
+  	  			withCredentials:true
+  	  		},//支持跨域发送cookies
+  	  		success: function (result) {
+  	  			const resultArray = new Set();
+  	  			resultArray.add(queryParam1);
+  	  			//export数据解析
+  	  			//$.each(result.rawResponse.hits.hits, (index, value) => {
+				$.each(result.hits.hits, (index, value) => {
+  	  			  const _id = value._source.就诊流水号 ? value._source.就诊流水号 : '';
+  	  			  resultArray.add(_id);
+  	  			});
+  	  			result1 = Array.from(resultArray).join(',');
+  	  			console.log(result1);
+				parent.postMessage(result1, '*');
+  			},
+  			error: function (xhr, status, p3, p4) {
+  				console.log(xhr,status,'status')
+					if(xhr.status == 401) {
+  					layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+  				}
+			}
+		})
+  	});
+	function downLoad(){
+	  //判定是否收到spotfire传递过来的参数
+	  if(!getSpotfireParams){
+		layer.msg('还未收到spotfire传递来的参数，请先传递！');
+		return;
+	  }
+      layer.msg('正在下载查询结果，请稍后...');
+	  var fileName = ""+new Date().getHours()+new Date().getMinutes()+new Date().getSeconds()+".csv";
+	  //确定查询下载行数
+	  queryParamForCsv.params.body.from=0;
+	  queryParamForCsv.params.body.size=0;
+	  queryParamForCsv.params.body.track_total_hits=true;
+	  var startTime = new Date();
+	  $.ajax({
+			url: "/kibana/api/console/proxy?path="+encodeURIComponent(queryParamForCsv.params.index)+"/_search&method=GET",
+  	  		type: "POST",
+  	  		dataType: "json",
+  	  			//data: JSON.stringify(queryParam.params.body),
+				data: JSON.stringify(queryParamForCsv.params.body),
+  	  			headers:{
+  	  			"kbn-version":'7.9.3',
+				'kbn-xsrf': 'kibana',
+  	  			'Content-Type':'application/json;charset=utf8'
+  	  		},
+  	  			xhrFields:{
+  	  			withCredentials:true
+  	  		},//支持跨域发送cookies
+  	  		success: function (result) {
+  	  			var total = result.hits.total.value;
+				var startTime1 = new Date()
+				var time = (startTime1 - startTime)/1000
+				console.log("计算总量花费了"+time+"s");
+				if(total<sizeForDownLoad){
+					//重新赋值最大下载量
+					queryParamForCsv.params.body.size=sizeForDownLoad;
+					$.ajax({
+						//url: "/api/internal/search/es",
+						url: "/kibana/api/console/proxy?path="+encodeURIComponent(queryParamForCsv.params.index)+"/_search&method=GET",
+						type: "POST",
+						dataType: "json",
+							//data: JSON.stringify(queryParam.params.body),
+							data: JSON.stringify(queryParamForCsv.params.body),
+							headers:{
+							"kbn-version":'7.9.3',
+							'kbn-xsrf': 'kibana',
+							'Content-Type':'application/json;charset=utf8'
+						},
+							xhrFields:{
+							withCredentials:true
+						},//支持跨域发送cookies
+						success: function (result) {
+							let csvText = "";
+							if(result.hits.total.value==0){
+								layer.msg("未查询到结果，请重新入排，重新传输参数！");
+								return;
+							}
+							let one = result.hits.hits[0]._source;
+							var columnNames = new Set();
+							for(let key in one){
+								csvText+=key+"\t,";
+								columnNames.add(key);
+							}
+							csvText=trim(csvText,',')+"\r\n";
+							$.each(result.hits.hits,(index,value)=>{
+								let row="";
+								columnNames.forEach(columnName=>row+=`${value._source[columnName]}`.replace(/\r|\n/g,'')+'\t,');
+								csvText+=trim(row,',')+'\r\n';
+							})
+							var startTime2 = new Date()
+							time = (startTime2 - startTime1)/1000
+							console.log("下载查询汇总花费了"+time+"s");
+							$.ajax({
+								url: "/upload-to-ftp",
+								data: JSON.stringify({"content":csvText,"fileName":fileName}),
+								type: "POST",
+								dataType: "json",
+								headers:{'Content-Type':'application/json;charset=utf8'},
+								success: function (result) {
+									time = (new Date() - startTime2)/1000
+									console.log("下载花费了"+time+"s");
+									layer.alert(fileName+"文件下载成功，请联系管理员获取")
+								},
+								error: function (xhr, status, p3, p4) {
+									console.log(xhr,status,'status')
+										if(xhr.status == 401) {
+										layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+									}
+								}
+							})
+						},
+						error: function (xhr, status, p3, p4) {
+							console.log(xhr,status,'status')
+								if(xhr.status == 401) {
+								layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+							}
+						}
+					})
+				}else{
+					//分片查询
+					var count = Math.floor(total/sizeForDownLoad);
+					layer.open({
+						type:1,
+						title:'下载确认',
+						content:'<div style="margin:30px"><label style="margin-bottom:10px; display: inline-block">由于查询结果行数为'+total+'，超过单次最大下载行数'+sizeForDownLoad+'，需分页下载</label><label style="margin-bottom:10px; display: inline-block">共'+count+1+' 分页数，请输入正确分页数</label><input type="text" id="inputValue" class="layui-input" placeholder="请输入分页号"></div>',
+						btn:['下载'],
+						yes:(index,layero) => {
+							startTime = new Date()
+							const inputValue = document.getElementById("inputValue");
+							const userInput = inputValue.value;
+							if(!isNaN(userInput) && Number(userInput) <=count+1 && Number(userInput)!=0){
+								layer.close(index);
+								var from = (Number(userInput)-1)*sizeForDownLoad;
+								var size = sizeForDownLoad;
+								queryParamForCsv.params.body.from=from;
+								queryParamForCsv.params.body.size=size;
+								queryParamForCsv.params.body.track_total_hits=false;
+								$.ajax({
+									url: "/kibana/api/console/proxy?path="+encodeURIComponent(queryParamForCsv.params.index)+"/_search&method=GET",
+									type: "POST",
+									dataType: "json",
+										data: JSON.stringify(queryParam.params.body),
+										headers:{
+										"kbn-version":'7.9.3',
+										'kbn-xsrf': 'kibana',
+										'Content-Type':'application/json;charset=utf8'
+									},
+										xhrFields:{
+										withCredentials:true
+									},//支持跨域发送cookies
+									success: function (result) {
+										let csvText = "";
+										let one = result.hits.hits[0]._source;
+										var columnNames = new Set();
+										for(let key in one){
+											csvText+=key+"\t,";
+											columnNames.add(key);
+										}
+										csvText=trim(csvText,',')+"\r\n";
+										$.each(result.hits.hits,(index,value)=>{
+											let row="";
+											columnNames.forEach(columnName=>row+=`${value._source[columnName]}`.replace(/\r|\n/g,'')+'\t,');
+											csvText+=trim(row,',')+'\r\n';
+										})
+										var startTime2 = new Date()
+										time = (startTime2 - startTime)/1000
+										console.log("分页查询汇总花费了"+time+"s");
+										$.ajax({
+											url: "/upload-to-ftp",
+											data: JSON.stringify({"content":csvText,"fileName":fileName}),
+											type: "POST",
+											dataType: "json",
+											headers:{'Content-Type':'application/json;charset=utf8'},
+											success: function (result) {
+												time = (new Date() - startTime2)/1000
+												console.log("分页下载花费了"+time+"s");
+												layer.alert(fileName+"文件下载成功，请联系管理员获取")
+											},
+											error: function (xhr, status, p3, p4) {
+												console.log(xhr,status,'status')
+													if(xhr.status == 401) {
+													layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+												}
+											}
+										})
+									},
+									error: function (xhr, status, p3, p4) {
+										console.log(xhr,status,'status')
+											if(xhr.status == 401) {
+											layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+										}
+									}
+								})
+								
+							}else{
+								layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+							}
+						}
+					})
+				}
+  			},
+  			error: function (xhr, status, p3, p4) {
+  				console.log(xhr,status,'status')
+					if(xhr.status == 401) {
+  					layer.msg("第一遍由于没有登录 所以cookie 为空 所以请求为401")
+  				}
+			}
+		})
+	};
+    $('#customFuntion').on('click', "#download", function () {
+		downLoad();
+    });
+	
+	//下载csv
+	function downloadBigFile(data,fileName){
+		var csvData = data;
+		var blob = new Blob(["\ufeff"+csvData],{
+			type:"application/csv;charset:utf-8;"
+		});
+		if(window.navigator.msSaveBlob){
+			//For ie bowser
+			navigator.msSaveBlob(blob,fileName);
+		}else{
+			//for other bowser
+			var link = document.createElement("a");
+			var csvUrl = URL.createObjectURL(blob);
+			link.href=csvUrl;
+			link.download=fileName;
+			link.style="visibility:hidden";
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
+	}
+	//js实现trim效果
+	function trim(str,char){
+		if(char){
+			str=str.replace(new RegExp('^\\'+char+'+|\\'+char+'+$','g'),'');
+		}
+		return str.replace(/^\s+|\s+$/g,'');
+	}
+  });
+</script>

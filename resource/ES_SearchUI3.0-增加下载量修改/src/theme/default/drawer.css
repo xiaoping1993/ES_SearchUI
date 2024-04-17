@@ -1,0 +1,51 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+html{height: 100%}
+body {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.drawer-header {
+  border-bottom: 1px solid #DEE1E6;
+  padding: 15px 15px;
+  line-height: 2;
+}
+.drawer-header-title{
+  width: 100%;
+  height: 20px;
+  line-height: 20px;
+  font-size: 16px;
+  color: #17233d;
+  font-weight: 600;
+  overflow: hidden;
+  display: inline-block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawer-header-content{
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  font-size: 14px;
+}
+.pBox{
+  padding:15px 0;
+  cursor: pointer;
+}
+.pBox a:hover {
+  color: #006BB4;
+}
+#tig{
+  position: absolute;
+  top:5px;
+  font-size: 20px;
+  left: 20px;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0);
+}
